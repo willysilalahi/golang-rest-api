@@ -1,77 +1,103 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"net/http"
+	"golang-rest-api/handler"
+	"golang-rest-api/model"
+	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 func main() {
-	route := gin.Default()
+	dsn := "root:@tcp(127.0.0.1:3306)/pustaka?charset=utf8mb4&parseTime=True&loc=Local"
+	DB, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 
-	route.GET("/", rootHandler)
-	route.GET("/hello", helloHandler)
-	route.GET("/book/:id/:title", booksHandler)
-	route.GET("/query", queryHandler)
-	route.POST("/book", createBook)
-
-	route.Run()
-}
-
-func rootHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"name": "Mukidi",
-		"bio":  "Muka diri sendiri",
-	})
-}
-
-func helloHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"title":       "Seni Bodoh Amat",
-		"description": "Ini adalah buku yang sama sekali gadak gunanya",
-	})
-}
-
-func booksHandler(c *gin.Context) {
-	id := c.Param("id")
-	title := c.Param("title")
-	c.JSON(http.StatusOK, gin.H{
-		"id":    id,
-		"title": title,
-	})
-}
-
-func queryHandler(c *gin.Context) {
-	title := c.Query("title")
-	price := c.Query("price")
-	c.JSON(http.StatusOK, gin.H{
-		"title": title,
-		"price": price,
-	})
-}
-
-type BookInput struct {
-	Title string      `json:"title" binding:"required"`
-	Price json.Number `json:"price" binding:"required,number"`
-}
-
-func createBook(c *gin.Context) {
-	var bookInput BookInput
-
-	err := c.ShouldBindJSON(&bookInput)
 	if err != nil {
-		for _, e := range err.(validator.ValidationErrors) {
-			errorMessage := fmt.Sprintf("Error on field %s, condition: %s", e.Field(), e.ActualTag())
-			c.JSON(http.StatusBadRequest, errorMessage)
-			return
-		}
+		log.Fatal("Database connection error!")
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"title": bookInput.Title,
-		"price": bookInput.Price,
-	})
+	DB.AutoMigrate(&model.Book{})
+
+	/*
+		//creating book
+		var book model.Book
+		book.Title = "Seni Bodoh Amat"
+		book.Description = "Sebuah buku yang mengajari orang untuk bodoh amat lah cok"
+		book.Price = 140000
+		book.Rating = 5
+		DB.Create(&book)
+
+		//Get Single Book
+		var book model.Book
+		err = DB.First(&book, 3).Error
+		if err != nil {
+			fmt.Println("=========================")
+			fmt.Println("Error finding book record")
+			fmt.Println("=========================")
+		}
+		fmt.Println("Title :", book.Title)
+		fmt.Println("%v", book)
+
+
+		//Get All Book
+		var books []model.Book
+		err = DB.Find(&books).Error
+		if err != nil {
+			fmt.Println("=========================")
+			fmt.Println("Error get all book record")
+			fmt.Println("=========================")
+		}
+
+		for i, value := range books {
+			fmt.Println("Data ", i, " :", value.Title)
+		}
+
+		//Get All Book Query Search
+		var books []model.Book
+		search := "Naj"
+		err = DB.Where("title LIKE ?", "%"+search+"%").Find(&books).Error
+		if err != nil {
+			fmt.Println("=========================")
+			fmt.Println("Error get all book record")
+			fmt.Println("=========================")
+		}
+
+		for i, value := range books {
+			fmt.Println("Data ", i, " :", value.Title)
+		}
+
+		// Update book data by id
+		var book model.Book
+		DB.First(&book, 3)
+		err = DB.Model(&book).Updates(model.Book{Title: "Catatan Ko Wilson", Price: 201000}).Error
+		if err != nil {
+			fmt.Println("=========================")
+			fmt.Println("Error updated book data  ")
+			fmt.Println("=========================")
+		}
+
+		// Delete Data
+		var book model.Book
+		err = DB.Delete(&book, 4).Error
+		if err != nil {
+			fmt.Println("=========================")
+			fmt.Println("Error updated book data  ")
+			fmt.Println("=========================")
+		}
+		fmt.Println("Data buku berhasil di hapus bro!")
+	*/
+
+	// Routing
+	route := gin.Default()
+	v1 := route.Group("/v1")
+
+	v1.GET("/", handler.RootHandler)
+	v1.GET("/hello", handler.HelloHandler)
+	v1.GET("/book/:id/:title", handler.BooksHandler)
+	v1.GET("/query", handler.QueryHandler)
+	v1.POST("/book", handler.CreateBook)
+
+	route.Run()
 }
